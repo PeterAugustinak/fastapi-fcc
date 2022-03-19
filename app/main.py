@@ -51,6 +51,7 @@ def create(post):
     posted.update({"id": post_id})
     post_id += 1
     my_posts.append(posted)
+    return posted
 
 
 # must be before post/{id} otherwise 'latest' is taken as {id}
