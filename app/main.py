@@ -29,19 +29,6 @@ while True:
         time.sleep(3)
 
 
-post_id = 1
-my_posts = [
-    {"title": "default str", "content": "default str",
-     "published": False, "rating": 1, "id": 0}
-]
-
-
-def find_post(id_):
-    for post in my_posts:
-        if post.get("id") == id_:
-            return post
-
-
 def post_not_exist(id_: int):
     if id_ != -1:
         message = "No posts found."
@@ -100,21 +87,19 @@ def get_post(id_: int):
 
 @app.put("/posts/{id_}")
 def update_post(id_: int, updated_post: Post):
+    updated_post = update(id_, updated_post)
+    if updated_post:
+        return {"data": updated_post}
+    post_not_exist(id_)
+
+
+def update(id_, updated_post):
     cursor.execute("""UPDATE posts SET title = %s, content = %s, 
     published = %s WHERE id = %s RETURNING *""",
                    (updated_post.title, updated_post.content,
                     updated_post.published, str(id_),))
     conn.commit()
     updated_post = cursor.fetchone()
-    if updated_post:
-        return {"data": updated_post}
-    post_not_exist(id_)
-
-
-def update(old_post, new_post):
-    new_post = new_post.dict()
-    old_post.update(new_post)
-    updated_post = find_post(id)
     return updated_post
 
 
@@ -127,7 +112,3 @@ def delete_post(id_: int):
     if deleted_post:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     post_not_exist(id_)
-
-
-# if __name__ == "__main__":
-#     uvicorn.run(app, port=8070)
