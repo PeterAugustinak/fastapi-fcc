@@ -13,7 +13,7 @@ services:
         networks:
             - fastapinet
         ports:
-            - '${PG_PORT:-5433:5433}'
+            - "5433:5432"
 
 networks:
   fastapinet:

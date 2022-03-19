@@ -4,6 +4,9 @@ from fastapi import FastAPI, Response, status, HTTPException
 from fastapi import Body
 from pydantic import BaseModel
 import uvicorn
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 
 app = FastAPI()
 
@@ -13,6 +16,18 @@ class Post(BaseModel):
     content: str
     published: bool = True
     rating: Optional[int] = None
+
+try:
+    conn = psycopg2.connect(host="localhost", port='5433', database='fastapi',
+                            user='postgres', password='password',
+                            cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
+    print("DB connection successful")
+except Exception as error:
+    print("Connection to DB failed")
+    print(f"Error: {error}")
+
+
 
 post_id = 1
 my_posts = [
