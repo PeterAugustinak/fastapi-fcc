@@ -1,14 +1,14 @@
 import time
 from typing import List
 
-from fastapi import FastAPI, Response, status, HTTPException, Depends
+from fastapi import FastAPI, Response, status, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from . import schemas
 from . import models
 from .database import engine, get_db
-from .utils import hash
+from .utils import hash, record_not_exist
 
 
 models.Base.metadata.create_all(bind=engine)
@@ -49,7 +49,7 @@ def get_latest_post(db: Session = Depends(get_db)):
     latest_post = db.query(models.Post).order_by(desc(models.Post.id)).first()
     if latest_post:
         return latest_post
-    post_not_exist(-1)
+    record_not_exist(-1, "post")
 
 
 @app.get("/posts/{id_}", response_model=schemas.PostResponse)
@@ -57,7 +57,7 @@ def get_post(id_: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id_).first()
     if post:
         return post
-    post_not_exist(id_)
+    record_not_exist(id_, "post")
 
 
 @app.put("/posts/{id_}", status_code=status.HTTP_202_ACCEPTED,
@@ -67,7 +67,7 @@ def update_post(id_: int, updated_post: schemas.PostUpdate,
     post = update(id_, updated_post, db)
     if post:
         return post
-    post_not_exist(id_)
+    record_not_exist(id_, "post")
 
 
 def update(id_, updated_post, db):
@@ -86,16 +86,7 @@ def delete_post(id_: int, db: Session = Depends(get_db)):
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    post_not_exist(id_)
-
-
-def post_not_exist(id_: int):
-    if id_ != -1:
-        message = "No posts found."
-    else:
-        message = f"Post id {id_} not exist!"
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                        detail=message)
+    record_not_exist(id_, "post")
 
 
 @app.post("/users", status_code=status.HTTP_201_CREATED,
@@ -105,3 +96,13 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     user.password = hashed_password
     user = create(user, models.User, db)
     return user
+
+
+@app.get("/users/{id_}", response_model=schemas.UserResponse)
+def get_user(id_: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id_).first()
+    if user:
+        return user
+
+    record_not_exist(id_, "user")
+
