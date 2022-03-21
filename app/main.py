@@ -1,11 +1,13 @@
 import time
+from typing import List
 
 from fastapi import FastAPI, Response, status, HTTPException, Depends
-from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
+from . import schemas
 from . import models
 from .database import engine, get_db
 
@@ -13,13 +15,6 @@ from .database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
 
 
 while True:
@@ -36,6 +31,79 @@ while True:
         time.sleep(3)
 
 
+@app.get("/")
+async def root():
+    return {"message": "Welcome to my new API!"}
+
+
+@app.get("/posts", response_model=List[schemas.PostResponse])
+async def get_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return posts
+
+
+@app.post("/posts", status_code=status.HTTP_201_CREATED,
+          response_model=schemas.PostResponse)
+def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
+    posted = create(post, db)
+    return posted
+
+
+def create(post, db):
+    new_post = models.Post(**post.dict())
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    return new_post
+
+
+# must be before post/{id} otherwise 'latest' is taken as {id}
+@app.get("/posts/latest", response_model=schemas.PostResponse)
+def get_latest_post(db: Session = Depends(get_db)):
+    latest_post = db.query(models.Post).order_by(desc(models.Post.id)).first()
+    if latest_post:
+        return latest_post
+    post_not_exist(-1)
+
+
+@app.get("/posts/{id_}", response_model=schemas.PostResponse)
+def get_post(id_: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id_).first()
+    if post:
+        return post
+    post_not_exist(id_)
+
+
+@app.put("/posts/{id_}", status_code=status.HTTP_202_ACCEPTED,
+         response_model=schemas.PostResponse)
+def update_post(id_: int, updated_post: schemas.PostUpdate,
+                db: Session = Depends(get_db)):
+    post = update(id_, updated_post, db)
+    if post:
+        return post
+    post_not_exist(id_)
+
+
+def update(id_, updated_post, db):
+    post_query = db.query(models.Post).filter(models.Post.id == id_)
+    if post_query.first():
+        post_query.update(updated_post.dict(), synchronize_session=False)
+        db.commit()
+        return updated_post
+
+
+@app.delete("/posts/{id_}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(id_: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id_)
+    if post.first():
+        post.delete(synchronize_session=False)
+        db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    post_not_exist(id_)
+
+
 def post_not_exist(id_: int):
     if id_ != -1:
         message = "No posts found."
@@ -43,85 +111,3 @@ def post_not_exist(id_: int):
         message = f"Post id {id_} not exist!"
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=message)
-
-
-@app.get("/sqlalchemy")
-def test_post(db: Session = Depends(get_db)):
-    posts = db.query(models.Post).all()
-    return {"data": posts}
-
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to my new API!"}
-
-
-@app.get("/posts")
-async def get_posts():
-    cursor.execute("""SELECT * FROM posts;""")
-    posts = cursor.fetchall()
-    return posts
-
-
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_post(post: Post):
-    posted = create(post)
-    return {"data": posted}
-
-
-def create(post):
-    global post_id
-    cursor.execute("""INSERT INTO posts (title, content, published) 
-                   VALUES (%s, %s, %s) RETURNING * """,
-                   (post.title, post.content, post.published))
-    conn.commit()
-    posted = cursor.fetchone()
-    return posted
-
-
-# must be before post/{id} otherwise 'latest' is taken as {id}
-@app.get("/posts/latest")
-def get_latest_post():
-    cursor.execute("""SELECT * FROM posts ORDER BY created_at DESC LIMIT 1""")
-    latest_post = cursor.fetchone()
-    if latest_post:
-        return {"data": latest_post}
-    post_not_exist(-1)
-
-
-@app.get("/posts/{id_}")
-def get_post(id_: int):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id_)))
-    post = cursor.fetchone()
-    if post:
-        return {"data": post}
-    post_not_exist(id_)
-
-
-@app.put("/posts/{id_}")
-def update_post(id_: int, updated_post: Post):
-    updated_post = update(id_, updated_post)
-    if updated_post:
-        return {"data": updated_post}
-    post_not_exist(id_)
-
-
-def update(id_, updated_post):
-    cursor.execute("""UPDATE posts SET title = %s, content = %s, 
-    published = %s WHERE id = %s RETURNING *""",
-                   (updated_post.title, updated_post.content,
-                    updated_post.published, str(id_),))
-    conn.commit()
-    updated_post = cursor.fetchone()
-    return updated_post
-
-
-@app.delete("/posts/{id_}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id_: int):
-    cursor.execute("""DELETE FROM posts WHERE id = %s returning *""",
-                   (str(id_),))
-    conn.commit()
-    deleted_post = cursor.fetchone()
-    if deleted_post:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    post_not_exist(id_)
