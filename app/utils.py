@@ -17,3 +17,12 @@ def record_not_exist(id_: int, obj):
         message = f"{obj} id {id_} not exist!"
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=message)
+
+
+def create(create_obj, model, db):
+    new_obj = model(**create_obj.dict())
+    db.add(new_obj)
+    db.commit()
+    db.refresh(new_obj)
+
+    return new_obj
