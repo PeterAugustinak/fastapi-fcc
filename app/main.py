@@ -17,20 +17,6 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 
-while True:
-    try:
-        conn = psycopg2.connect(host="localhost", port='5433',
-                                database='fastapi',
-                                user='postgres', password='password',
-                                cursor_factory=RealDictCursor)
-        cursor = conn.cursor()
-        break
-    except Exception as error:
-        print("Connection to DB failed")
-        print(f"Error: {error}")
-        time.sleep(3)
-
-
 @app.get("/")
 async def root():
     return {"message": "Welcome to my new API!"}
@@ -45,17 +31,17 @@ async def get_posts(db: Session = Depends(get_db)):
 @app.post("/posts", status_code=status.HTTP_201_CREATED,
           response_model=schemas.PostResponse)
 def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
-    posted = create(post, db)
+    posted = create(post, models.Post, db)
     return posted
 
 
-def create(post, db):
-    new_post = models.Post(**post.dict())
-    db.add(new_post)
+def create(create_obj, model, db):
+    new_obj = model(**create_obj.dict())
+    db.add(new_obj)
     db.commit()
-    db.refresh(new_post)
+    db.refresh(new_obj)
 
-    return new_post
+    return new_obj
 
 
 # must be before post/{id} otherwise 'latest' is taken as {id}
@@ -111,3 +97,12 @@ def post_not_exist(id_: int):
         message = f"Post id {id_} not exist!"
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=message)
+
+
+@app.post("/users", status_code=status.HTTP_201_CREATED,
+          response_model=schemas.UserResponse)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    user = create(user, models.User, db)
+    return user
+
+
