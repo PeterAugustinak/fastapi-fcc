@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from .. import schemas
+from .. import oauth2
 from .. import models
 from ..database import get_db
 from ..utils import record_not_exist, create
@@ -14,14 +15,17 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
 @router.get("/", response_model=List[schemas.PostResponse])
-async def get_posts(db: Session = Depends(get_db)):
+async def get_posts(db: Session = Depends(get_db),
+                    current_user: int = Depends(oauth2.get_current_user)):
+    print(current_user.email)
     posts = db.query(models.Post).all()
     return posts
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED,
           response_model=schemas.PostResponse)
-def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
+def create_post(post: schemas.PostCreate, db: Session = Depends(get_db),
+                current_user: int = Depends(oauth2.get_current_user)):
     posted = create(post, models.Post, db)
     return posted
 
@@ -36,7 +40,8 @@ def get_latest_post(db: Session = Depends(get_db)):
 
 
 @router.get("/{id_}", response_model=schemas.PostResponse)
-def get_post(id_: int, db: Session = Depends(get_db)):
+def get_post(id_: int, db: Session = Depends(get_db),
+             current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id_).first()
     if post:
         return post
@@ -46,7 +51,8 @@ def get_post(id_: int, db: Session = Depends(get_db)):
 @router.put("/{id_}", status_code=status.HTTP_202_ACCEPTED,
          response_model=schemas.PostResponse)
 def update_post(id_: int, updated_post: schemas.PostUpdate,
-                db: Session = Depends(get_db)):
+                db: Session = Depends(get_db),
+                current_user: int = Depends(oauth2.get_current_user)):
     post = update(id_, updated_post, db)
     if post:
         return post
@@ -63,7 +69,8 @@ def update(id_, updated_post, db):
 
 
 @router.delete("/{id_}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id_: int, db: Session = Depends(get_db)):
+def delete_post(id_: int, db: Session = Depends(get_db),
+                current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id_)
     if post.first():
         post.delete(synchronize_session=False)
