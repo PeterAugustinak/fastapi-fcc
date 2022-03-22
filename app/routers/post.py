@@ -32,7 +32,7 @@ def get_latest_post(db: Session = Depends(get_db)):
     latest_post = db.query(models.Post).order_by(desc(models.Post.id)).first()
     if latest_post:
         return latest_post
-    record_not_exist(-1, "post")
+    record_not_exist("post", -1)
 
 
 @router.get("/{id_}", response_model=schemas.PostResponse)
@@ -40,7 +40,7 @@ def get_post(id_: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id_).first()
     if post:
         return post
-    record_not_exist(id_, "post")
+    record_not_exist("post", id_)
 
 
 @router.put("/{id_}", status_code=status.HTTP_202_ACCEPTED,
@@ -50,7 +50,7 @@ def update_post(id_: int, updated_post: schemas.PostUpdate,
     post = update(id_, updated_post, db)
     if post:
         return post
-    record_not_exist(id_, "post")
+    record_not_exist("post", id_)
 
 
 def update(id_, updated_post, db):
@@ -70,4 +70,4 @@ def delete_post(id_: int, db: Session = Depends(get_db)):
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    record_not_exist(id_, "post")
+    record_not_exist("post", id_)

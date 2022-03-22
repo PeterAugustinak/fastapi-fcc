@@ -1,6 +1,7 @@
 """Module with pydentic schemas"""
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
@@ -41,3 +42,17 @@ class UserResponse(User):
 
     class Config:
         orm_mode = True
+
+
+class Login(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    id: Optional[str]

@@ -25,4 +25,4 @@ def get_user(id_: int, db: Session = Depends(get_db)):
     if user:
         return user
 
-    record_not_exist(id_, "user")
+    record_not_exist("user", id_, )
