@@ -19,14 +19,22 @@ async def get_posts(db: Session = Depends(get_db),
                     current_user: int = Depends(oauth2.get_current_user)):
     print(current_user.email)
     posts = db.query(models.Post).all()
-    return posts
+    if posts:
+        return posts
+    record_not_exist("post", -1)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED,
           response_model=schemas.PostResponse)
 def create_post(post: schemas.PostCreate, db: Session = Depends(get_db),
                 current_user: int = Depends(oauth2.get_current_user)):
-    posted = create(post, models.Post, db)
+
+    user_id = current_user.id
+    create_obj = post.dict()
+    create_obj.update({"user_id": user_id})
+
+    posted = create(create_obj, models.Post, db)
+
     return posted
 
 

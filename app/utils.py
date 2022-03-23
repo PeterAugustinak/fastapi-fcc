@@ -30,7 +30,9 @@ def invalid_credentials():
 
 
 def create(create_obj, model, db):
-    new_obj = model(**create_obj.dict())
+    if type(create_obj) != dict:
+        create_obj = create_obj.dict()
+    new_obj = model(**create_obj)
     db.add(new_obj)
     db.commit()
     db.refresh(new_obj)
