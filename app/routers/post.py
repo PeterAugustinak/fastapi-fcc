@@ -17,8 +17,8 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 @router.get("/", response_model=List[schemas.PostResponse])
 async def get_posts(db: Session = Depends(get_db),
                     current_user: int = Depends(oauth2.get_current_user)):
-    print(current_user.email)
-    posts = db.query(models.Post).all()
+    posts = db.query(models.Post).filter(
+        models.Post.user_id == current_user.id).all()
     if posts:
         return posts
     record_not_exist("post", -1)
@@ -40,8 +40,12 @@ def create_post(post: schemas.PostCreate, db: Session = Depends(get_db),
 
 # must be before post/{id} otherwise 'latest' is taken as {id}
 @router.get("/latest", response_model=schemas.PostResponse)
-def get_latest_post(db: Session = Depends(get_db)):
-    latest_post = db.query(models.Post).order_by(desc(models.Post.id)).first()
+def get_latest_post(db: Session = Depends(get_db),
+                    current_user: int = Depends(oauth2.get_current_user)):
+    latest_post = db.query(models.Post).filter(
+        models.Post.user_id == current_user.id).order_by(
+        desc(models.Post.id)).first()
+
     if latest_post:
         return latest_post
     record_not_exist("post", -1)
@@ -52,6 +56,8 @@ def get_post(id_: int, db: Session = Depends(get_db),
              current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id_).first()
     if post:
+        if post.user_id != current_user.id:
+            not_authorized("Not authorized to perform action")
         return post
     record_not_exist("post", id_)
 
