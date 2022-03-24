@@ -18,7 +18,7 @@ router = APIRouter(prefix="/posts", tags=["Posts"])
 async def get_posts(db: Session = Depends(get_db),
                     current_user: int = Depends(oauth2.get_current_user)):
     posts = db.query(models.Post).filter(
-        models.Post.user_id == current_user.id).all()
+        models.Post.owner_id == current_user.id).all()
     if posts:
         return posts
     record_not_exist("post", -1)
@@ -29,9 +29,9 @@ async def get_posts(db: Session = Depends(get_db),
 def create_post(post: schemas.PostCreate, db: Session = Depends(get_db),
                 current_user: int = Depends(oauth2.get_current_user)):
 
-    user_id = current_user.id
+    owner_id = current_user.id
     create_obj = post.dict()
-    create_obj.update({"user_id": user_id})
+    create_obj.update({"owner_id": owner_id})
 
     posted = create(create_obj, models.Post, db)
 
@@ -43,7 +43,7 @@ def create_post(post: schemas.PostCreate, db: Session = Depends(get_db),
 def get_latest_post(db: Session = Depends(get_db),
                     current_user: int = Depends(oauth2.get_current_user)):
     latest_post = db.query(models.Post).filter(
-        models.Post.user_id == current_user.id).order_by(
+        models.Post.owner_id == current_user.id).order_by(
         desc(models.Post.id)).first()
 
     if latest_post:
@@ -56,7 +56,7 @@ def get_post(id_: int, db: Session = Depends(get_db),
              current_user: int = Depends(oauth2.get_current_user)):
     post = db.query(models.Post).filter(models.Post.id == id_).first()
     if post:
-        if post.user_id != current_user.id:
+        if post.owner_id != current_user.id:
             not_authorized("Not authorized to perform action")
         return post
     record_not_exist("post", id_)
@@ -77,7 +77,7 @@ def update(id_, updated_post, db, current_user):
     post_query = db.query(models.Post).filter(models.Post.id == id_)
     post = post_query.first()
     if post:
-        if post.user_id != current_user.id:
+        if post.owner_id != current_user.id:
             not_authorized("Not authorized to perform action")
         post_query.update(updated_post.dict(), synchronize_session=False)
         db.commit()
@@ -90,7 +90,7 @@ def delete_post(id_: int, db: Session = Depends(get_db),
     post_query = db.query(models.Post).filter(models.Post.id == id_)
     post = post_query.first()
     if post:
-        if post.user_id != current_user.id:
+        if post.owner_id != current_user.id:
             not_authorized("Not authorized to perform action")
 
         post_query.delete(synchronize_session=False)

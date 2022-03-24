@@ -6,6 +6,22 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 
+class User(BaseModel):
+    email: EmailStr
+
+
+class UserCreate(User):
+    password: str
+
+
+class UserResponse(User):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
 class Post(BaseModel):
     title: str
     content: str
@@ -23,23 +39,8 @@ class PostUpdate(Post):
 class PostResponse(Post):
     id: int
     created_at: datetime
-    user_id: int
-
-    class Config:
-        orm_mode = True
-
-
-class User(BaseModel):
-    email: EmailStr
-
-
-class UserCreate(User):
-    password: str
-
-
-class UserResponse(User):
-    id: int
-    created_at: datetime
+    owner_id: int
+    owner: UserResponse
 
     class Config:
         orm_mode = True
