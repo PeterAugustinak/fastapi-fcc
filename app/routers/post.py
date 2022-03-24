@@ -8,7 +8,7 @@ from .. import schemas
 from .. import oauth2
 from .. import models
 from ..database import get_db
-from ..utils import record_not_exist, create
+from ..utils import record_not_exist, create, not_authorized
 
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
@@ -61,16 +61,18 @@ def get_post(id_: int, db: Session = Depends(get_db),
 def update_post(id_: int, updated_post: schemas.PostUpdate,
                 db: Session = Depends(get_db),
                 current_user: int = Depends(oauth2.get_current_user)):
-    post = update(id_, updated_post, db)
+    post = update(id_, updated_post, db, current_user)
     if post:
         return post
     record_not_exist("post", id_)
 
 
-def update(id_, updated_post, db):
+def update(id_, updated_post, db, current_user):
     post_query = db.query(models.Post).filter(models.Post.id == id_)
     post = post_query.first()
     if post:
+        if post.user_id != current_user.id:
+            not_authorized("Not authorized to perform action")
         post_query.update(updated_post.dict(), synchronize_session=False)
         db.commit()
         return post
@@ -79,9 +81,13 @@ def update(id_, updated_post, db):
 @router.delete("/{id_}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id_: int, db: Session = Depends(get_db),
                 current_user: int = Depends(oauth2.get_current_user)):
-    post = db.query(models.Post).filter(models.Post.id == id_)
-    if post.first():
-        post.delete(synchronize_session=False)
+    post_query = db.query(models.Post).filter(models.Post.id == id_)
+    post = post_query.first()
+    if post:
+        if post.user_id != current_user.id:
+            not_authorized("Not authorized to perform action")
+
+        post_query.delete(synchronize_session=False)
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 

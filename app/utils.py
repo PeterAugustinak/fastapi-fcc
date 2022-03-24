@@ -23,8 +23,7 @@ def record_not_exist(obj: str, id_):
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=message)
 
-def invalid_credentials():
-    message = f"Invalid Credentials"
+def not_authorized(message):
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                         detail=message)
 
