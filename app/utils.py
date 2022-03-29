@@ -27,13 +27,19 @@ def not_authorized(message):
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                         detail=message)
 
+def vote_conflict(message):
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                        detail=message)
+
 
 def create(create_obj, model, db):
     if type(create_obj) != dict:
         create_obj = create_obj.dict()
     new_obj = model(**create_obj)
+    print(new_obj)
     db.add(new_obj)
     db.commit()
     db.refresh(new_obj)
 
     return new_obj
+
