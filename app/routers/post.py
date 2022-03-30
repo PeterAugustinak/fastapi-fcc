@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from fastapi import Response, status, Depends, APIRouter
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from .. import schemas
 from .. import oauth2
@@ -14,21 +14,22 @@ from ..utils import record_not_exist, create, not_authorized
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-@router.get("/", response_model=List[schemas.PostResponse])
+@router.get("/", response_model=List[schemas.PostVotesReponse])
 async def get_posts(db: Session = Depends(get_db),
                     current_user: int = Depends(oauth2.get_current_user),
                     limit: int = 10, skip: int = 0,
                     search: Optional[str] = ""):
 
-    posts = db.query(models.Post).\
-        filter(models.Post.owner_id == current_user.id).\
-        filter(models.Post.title.contains(search)).\
-        limit(limit).\
-        offset(skip).\
+    posts = db.query(models.Post, func.count(models.Vote.post_id).\
+                     label("votes")).\
+        join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True).\
+        group_by(models.Post.id).\
+        filter(models.Post.title.contains(search)).limit(limit).offset(skip).\
         all()
 
     if posts:
         return posts
+
     record_not_exist("post", -1)
 
 
